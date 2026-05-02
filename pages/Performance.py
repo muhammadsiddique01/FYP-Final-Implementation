@@ -124,6 +124,6 @@ def run():
                 return "color: red"
             return ""
 
-        st.dataframe(data.style.applymap(color_action, subset=["Action"]), use_container_width=True)
+        st.dataframe(data, use_container_width=True)
 
         st.caption("*All results shown are simulated for academic purposes.")
