@@ -3,7 +3,7 @@ def run():
 
     st.set_page_config(layout="wide")
 
-    # ---------------- CSS (FIXED UI) ----------------
+    # ---------------- CSS ----------------
     st.markdown("""
     <style>
 
@@ -16,17 +16,15 @@ def run():
         max-width: 1150px;
     }
 
-    /* MAIN CARD */
     div[data-testid="stContainer"] {
         border-radius: 18px !important;
-        padding: 18px !important;   /* FIXED (was 4px) */
+        padding: 18px !important;
         border: 1px solid #e5e7eb !important;
         box-shadow: 0px 6px 18px rgba(0,0,0,0.06) !important;
         background: white !important;
         margin-bottom: 25px !important;
     }
 
-    /* MODULE EQUAL HEIGHT */
     .module-card {
         height: 100%;
         display: flex;
@@ -34,7 +32,6 @@ def run():
         justify-content: space-between;
     }
 
-    /* MINI TECH CARDS */
     .mini-card {
         background: #f8fafc;
         padding: 20px;
@@ -63,13 +60,15 @@ def run():
     """, unsafe_allow_html=True)
 
     # ---------------- TITLE ----------------
-    st.title("System Architecture")
-    st.caption("High-level workflow and component interaction of the proposed system")
+    st.title("Model Architecture")
+    st.caption("Hybrid LSTM-DQN framework for PSX stock market forecasting")
 
-    # ---------------- FLOW ----------------
+    # ---------------- IMAGE ----------------
     with st.container(border=True):
-        st.subheader("Overall System Flow")
-        st.image("system.png", width=1000)
+        st.subheader("Model Flow Diagram")
+
+        # IMPORTANT: Make sure model.png root folder me ho
+        st.image("model.png", use_container_width=True)
 
     # ---------------- MODULES ----------------
     col1, col2 = st.columns(2, gap="large")
@@ -108,7 +107,6 @@ def run():
     with st.container(border=True):
         st.subheader("Technology Stack")
 
-        # 🔥 spacing fix
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
         col1, col2, col3, col4 = st.columns(4, gap="medium")
@@ -141,5 +139,4 @@ def run():
         </div>
         """, unsafe_allow_html=True)
 
-        # 🔥 bottom spacing (important fix)
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
