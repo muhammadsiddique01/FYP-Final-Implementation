@@ -65,7 +65,7 @@ def run():
 
     # ---------------- IMAGE ----------------
     with st.container(border=True):
-        st.subheader("Model Flow Diagram")
+       
 
         # IMPORTANT: Make sure model.png root folder me ho
         st.image("model.png", use_container_width=True)
