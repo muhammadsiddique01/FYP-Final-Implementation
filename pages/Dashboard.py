@@ -3,54 +3,59 @@ def run():
     import numpy as np
     import matplotlib.pyplot as plt
 
+    # 🔥 BACKEND IMPORTS
+    from utils.data_loader import load_data, get_stock_data
+    from utils.predict import get_prediction
+
     # ----------------------------
-    # HEADER (NO ANCHOR ICON)
+    # HEADER
     # ----------------------------
     st.markdown("<h1>Trading Dashboard</h1>", unsafe_allow_html=True)
     st.markdown("<p style='color:#6b7280;'>AI-based trading decision support using historical PSX data</p>", unsafe_allow_html=True)
 
     # ----------------------------
-    # STOCK DATA
+    # LOAD DATA
     # ----------------------------
-    stocks_data = {
-        "OGDC": {"price": 192.5, "movement": 2.35, "volume": "2.4M"},
-        "HBL": {"price": 145.2, "movement": -1.2, "volume": "1.8M"},
-        "UBL": {"price": 120.8, "movement": 0.8, "volume": "1.2M"},
-        "ENGRO": {"price": 310.5, "movement": 1.5, "volume": "900K"},
-        "PSO": {"price": 210.3, "movement": -0.6, "volume": "1.1M"}
-    }
+    df = load_data()
+
+    stocks = df['Symbol'].unique()
+    selected_stock = st.selectbox("Select Stock", stocks)
+
+    df_stock = get_stock_data(df, selected_stock)
 
     # ----------------------------
-    # DROPDOWN
+    # BASIC INFO
     # ----------------------------
-    selected_stock = st.selectbox("Select Stock", list(stocks_data.keys()))
-    data = stocks_data[selected_stock]
+    latest = df_stock.iloc[-1]
 
     stock = selected_stock
-    price = data["price"]
-    movement = data["movement"]
-    volume = data["volume"]
+    current_price = float(latest['Close'])
+
+    prev_price = float(df_stock.iloc[-2]['Close'])
+    movement = ((current_price - prev_price) / prev_price) * 100
+
+    volume = f"{round(latest['Volume']/1e6,2)}M"
 
     # ----------------------------
-    # AI LOGIC (DUMMY)
+    # 🔥 AI PREDICTION
     # ----------------------------
-    prediction = np.random.uniform(-3, 3)
-    accuracy = np.random.uniform(0.6, 0.9)
+    predicted_price, decision, confidence, risk = get_prediction(selected_stock, df_stock)
 
-    if accuracy > 0.7 and prediction > 0:
-        decision = "BUY"
+    confidence = max(0, min(1, confidence))   # safety clamp
+    confidence_percent = int(confidence * 100)
+
+    # ----------------------------
+    # DECISION COLOR
+    # ----------------------------
+    if decision == "BUY":
         color = "#16a34a"
-    elif accuracy > 0.7 and prediction < 0:
-        decision = "SELL"
+    elif decision == "SELL":
         color = "#dc2626"
     else:
-        decision = "HOLD"
         color = "#f59e0b"
 
-    risk = "Low" if accuracy > 0.8 else "Medium" if accuracy > 0.6 else "High"
-
     # ----------------------------
-    # TOP INFO CARD
+    # TOP INFO CARD (FIXED)
     # ----------------------------
     st.markdown(f"""
     <div style="
@@ -62,7 +67,8 @@ def run():
     ">
         <div style="display:flex; justify-content:space-between;">
             <div><b>Selected Stock</b><br>{stock}</div>
-            <div><b>Reference Price</b><br>PKR {price}</div>
+            <div><b>Current Price</b><br>PKR {current_price:.2f}</div>
+            <div><b>Predicted Price</b><br>PKR {predicted_price:.2f}</div>
             <div><b>Price Movement</b><br>{movement:.2f}%</div>
             <div><b>Trading Volume</b><br>{volume}</div>
         </div>
@@ -74,6 +80,7 @@ def run():
     # ----------------------------
     c1, c2, c3 = st.columns(3)
 
+    # Decision
     c1.markdown(f"""
     <div style="
         border:2px solid #16a34a;
@@ -88,6 +95,7 @@ def run():
     </div>
     """, unsafe_allow_html=True)
 
+    # Confidence
     c2.markdown(f"""
     <div style="
         background:#f8fafc;
@@ -99,13 +107,14 @@ def run():
     ">
         <div style="font-size:28px;">🎯</div>
         <div style="color:#6b7280;">Confidence Score</div>
-        <h2>{int(accuracy*100)}%</h2>
+        <h2>{confidence_percent}%</h2>
         <div style="height:6px; background:#e5e7eb; border-radius:5px;">
-            <div style="width:{int(accuracy*100)}%; height:6px; background:#2563eb; border-radius:5px;"></div>
+            <div style="width:{confidence_percent}%; height:6px; background:#2563eb; border-radius:5px;"></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Risk
     c3.markdown(f"""
     <div style="
         background:#f8fafc;
@@ -126,27 +135,29 @@ def run():
     # ----------------------------
     st.markdown("<h3>Price Chart - Historical vs Predicted</h3>", unsafe_allow_html=True)
 
-    months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    last_12 = df_stock.tail(12)
 
-    actual = np.linspace(150, 190, 12)
-    predicted = actual + np.random.normal(0, 2, 12)
+    months = last_12['Date']
+    actual = last_12['Close']
+
+    predicted = actual.copy()
+    predicted.iloc[-1] = predicted_price
 
     fig, ax = plt.subplots(figsize=(6,3))
     ax.plot(months, actual, marker='o', label="Actual Price")
     ax.plot(months, predicted, linestyle='dashed', label="Predicted Price")
 
-    ax.set_ylim(0, 200)
-    ax.set_yticks([0,50,100,150,200])
     ax.legend(fontsize=8)
+    ax.tick_params(axis='x', rotation=45)
 
     st.pyplot(fig)
 
     # ----------------------------
-    # 🔥 FINAL PERFECT GAUGE (NO CUT)
+    # FEAR & GREED INDEX
     # ----------------------------
     st.markdown("<h3>Fear & Greed Index</h3>", unsafe_allow_html=True)
 
-    value = int(accuracy * 100)
+    value = confidence_percent
 
     fig, ax = plt.subplots(figsize=(6,4))
 
@@ -168,16 +179,7 @@ def run():
 
     ax.text(0, -0.35, f"{value}", ha='center', fontsize=20, fontweight='bold')
 
-    ax.text(-1.2, -0.55, "Fear", fontsize=11)
-    ax.text(0, -0.55, "Neutral", fontsize=11, ha='center')
-    ax.text(1.2, -0.55, "Greed", fontsize=11, ha='right')
-
     ax.set_aspect('equal')
-    ax.set_xlim(-1.5, 1.5)
-    ax.set_ylim(-1.4, 0.8)
-
-    plt.subplots_adjust(left=0.05, right=0.95, top=10.0, bottom=0.2)
-
     ax.axis('off')
 
     col1, col2, col3 = st.columns([1,3,1])
@@ -196,14 +198,19 @@ def run():
         border-radius:12px;
         border:1px solid #e5e7eb;
     ">
-    <b>LSTM Price Prediction:</b><br>
-    Model predicts <b>{prediction:.2f}% change</b><br><br>
+    <b>Current Price:</b><br>
+    PKR {current_price:.2f}<br><br>
 
-    <b>DQN Decision:</b><br>
-    Recommends <b>{decision}</b><br><br>
+    <b>LSTM Predicted Price:</b><br>
+    PKR {predicted_price:.2f}<br><br>
 
-    <b>Key Factors:</b><br>
-    • RSI: 58<br>
-    • MACD: Bullish<br>
+    <b>Decision:</b><br>
+    {decision}<br><br>
+
+    <b>Confidence:</b><br>
+    {confidence_percent}%<br><br>
+
+    <b>Risk Level:</b><br>
+    {risk}
     </div>
     """, unsafe_allow_html=True)
