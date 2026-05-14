@@ -28,8 +28,13 @@ section[data-testid="stSidebar"] {
     position: fixed !important;
     width: 250px !important;
     height: 100vh !important;
-    background-color: #f9fafb;
-    border-right: 1px solid #e5e7eb;
+    background: linear-gradient(
+    180deg,
+    #064e3b 0%,
+    #14532d 100%
+);
+
+border-right: 2px solid #22c55e;
 }
 
 /* REMOVE ALL SCROLL */
@@ -75,7 +80,7 @@ section[data-testid="stSidebar"] div.stButton > button {
     width: 100%;
     text-align: left;
     background: transparent;
-    color: black;
+    color: white;
     border: none;
     padding: 7px 10px;
     border-radius: 8px;
@@ -84,7 +89,7 @@ section[data-testid="stSidebar"] div.stButton > button {
 
 /* HOVER (SIDEBAR ONLY) */
 section[data-testid="stSidebar"] div.stButton > button:hover {
-    background-color: #e5e7eb;
+    background-color: rgba(255,255,255,0.12);
 }
 
 /* ===== HOME BUTTON (CENTER) ===== */
@@ -112,7 +117,7 @@ div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover {
 
 /* ACTIVE */
 .active-btn {
-    background-color: #2563eb;
+    background-color: #22c55e;
     color: white;
     padding: 7px 10px;
     border-radius: 8px;
@@ -122,7 +127,7 @@ div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover {
 /* DIVIDER */
 .divider {
     height: 1px;
-    background-color: #e5e7eb;
+    background-color: rgba(255,255,255,0.15);
     margin: 6px 0;
 }
 
@@ -160,27 +165,63 @@ div[data-testid="column"]:nth-of-type(2) div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 # ================= SIDEBAR HEADER =================
-import base64
 
-# Read and encode PNG image
-with open("logo.png", "rb") as f:
-    data = f.read()
-    encoded = base64.b64encode(data).decode()
+st.sidebar.markdown("""
+<style>
 
-st.sidebar.markdown(f"""
-<div style="display:flex; align-items:center; gap:10px;">
-    <div>
-        <img src="data:image/png;base64,{encoded}" width="60" style="display:block;">
-    </div>
-    <div>
-        <div style="font-size:20px; font-weight:700;">QuantSight</div>
-        <div style="font-size:12px; color:#6b7280;">Decision Support</div>
-    </div>
-</div>
+/* REMOVE EXTRA SPACE FROM IMAGE */
+[data-testid="stSidebar"] img {
+    margin-bottom: -25px !important;
+    margin-top: -10px !important;
+}
+
+/* REMOVE EXTRA BLOCK SPACING */
+[data-testid="stSidebar"] .element-container {
+    margin-bottom: 0rem !important;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
-st.sidebar.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+st.sidebar.image(
+    "logo.png",
+    width=90
+)
 
+st.sidebar.markdown(
+    """
+    <h2 style='
+        color:white;
+        margin-top:0px;
+        margin-bottom:0px;
+        font-size:26px;
+        font-weight:700;
+    '>
+    QuantSight
+    </h2>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.markdown(
+    """
+    <p style='
+        color:#bbf7d0;
+        margin-top:-8px;
+        margin-bottom:8px;
+        font-size:14px;
+        font-weight:500;
+    '>
+    Decision Support
+    </p>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.markdown(
+    '<div class="divider"></div>',
+    unsafe_allow_html=True
+)
 # ================= ICONS =================
 icons = {
     "Home": "🏠",
@@ -274,7 +315,7 @@ if st.session_state.page == "Home":
 
         /* Specific Home Button ki Styling */
         button[data-testid="baseButton-home_btn"] {
-            background-color: #2563eb !important; /* Blue color */
+            background-color: #16a34a !important; /* Blue color */
             color: white !important;
             padding: 12px 30px !important;
             border-radius: 10px !important;
@@ -287,7 +328,7 @@ if st.session_state.page == "Home":
 
         /* Hover effect */
         button[data-testid="baseButton-home_btn"]:hover {
-            background-color: #1e40af !important; /* Darker blue on hover */
+            background-color: #15803d !important; /* Darker blue on hover */
             border: none !important;
         }
         </style>
@@ -311,7 +352,8 @@ if st.session_state.page == "Home":
         <div style="
             padding:22px;
             border-radius:16px;
-            background:#f8fafc;
+            background:#f0fdf4;
+            border:1px solid #bbf7d0;
             box-shadow: 0 2px 6px rgba(0,0,0,0.05);
             margin-bottom:20px;
         ">
@@ -336,7 +378,8 @@ if st.session_state.page == "Home":
     # DISCLAIMER
     st.markdown("""
     <div style="
-        background:#f1f5f9;
+        background:#f0fdf4;
+        border:1px solid #bbf7d0;
         padding:20px;
         border-radius:14px;
         text-align:center;

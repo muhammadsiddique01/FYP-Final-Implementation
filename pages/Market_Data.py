@@ -1,11 +1,24 @@
 def run():
+
     import streamlit as st
     import pandas as pd
-    from datetime import datetime, timedelta
+    import matplotlib.pyplot as plt
 
-    st.set_page_config(layout="wide")
+    from utils.data_loader import (
+        load_data,
+        get_stock_data
+    )
 
-    # ---------------- CSS ----------------
+    # =========================
+    # PAGE CONFIG
+    # =========================
+    st.set_page_config(
+        layout="wide"
+    )
+
+    # =========================
+    # CSS
+    # =========================
     st.markdown("""
     <style>
 
@@ -17,11 +30,6 @@ def run():
         padding-top: 2rem;
     }
 
-    /* Card style using container */
-    section.main > div > div > div > div {
-        background: transparent;
-    }
-
     .stContainer {
         background: white;
         padding: 20px;
@@ -30,7 +38,6 @@ def run():
         margin-bottom: 20px;
     }
 
-    /* Table */
     table {
         width: 100%;
         border-collapse: collapse;
@@ -54,51 +61,306 @@ def run():
     </style>
     """, unsafe_allow_html=True)
 
-    # ---------------- TITLE ----------------
+    # =========================
+    # HEADER
+    # =========================
     st.title("Market Data")
-    st.caption("Historical PSX stock price data used for analysis and model input")
 
-    # ---------------- FILTER ----------------
+    st.caption(
+        """
+Historical Pakistan Stock Exchange (PSX) market data
+used for AI forecasting and reinforcement learning.
+        """
+    )
+
+    # =========================
+    # LOAD DATA
+    # =========================
+    df = load_data()
+
+    stocks = sorted(
+        df['Symbol'].unique()
+    )
+
+    # =========================
+    # FILTERS
+    # =========================
     with st.container():
+
         col1, col2 = st.columns(2)
 
+        # STOCK
         with col1:
-            stock = st.selectbox("Select Stock", ["OGDC", "HBL", "MCB", "UBL"])
 
+            selected_stock = st.selectbox(
+                "Select Stock",
+                stocks
+            )
+
+        # RANGE
         with col2:
-            range_option = st.selectbox("Date Range", ["Last 7 Days", "Last 30 Days", "Last 90 Days"])
 
-    # ---------------- DATA ----------------
-    def generate_data(days):
-        dates = [datetime.today() - timedelta(days=i) for i in range(days)]
-        data = []
+            range_option = st.selectbox(
+                "Historical Range",
+                [
+                    "Last 30 Records",
+                    "Last 90 Records",
+                    "Full Historical Data"
+                ]
+            )
 
-        for i in range(days):
-            data.append([
-                dates[i].strftime("%Y-%m-%d"),
-                180 + i,
-                184 + i,
-                178 + i,
-                183 + i,
-                f"{1.5 + i*0.2:.1f}M"
-            ])
+    # =========================
+    # GET STOCK DATA
+    # =========================
+    df_stock = get_stock_data(
+        df,
+        selected_stock
+    )
 
-        return pd.DataFrame(data, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+    # =========================
+    # RANGE FILTER
+    # =========================
+    if range_option == "Last 30 Records":
 
-    if range_option == "Last 7 Days":
-        df = generate_data(7)
-    elif range_option == "Last 30 Days":
-        df = generate_data(30)
+        df_display = df_stock.tail(30)
+
+    elif range_option == "Last 90 Records":
+
+        df_display = df_stock.tail(90)
+
     else:
-        df = generate_data(60)
 
-    # ---------------- TABLE ----------------
-    with st.container():
-        st.subheader(f"Historical OHLC Data – {stock}")
-        st.dataframe(df, use_container_width=True)
+        df_display = df_stock.copy()
 
-        st.caption("Displayed values are sample historical records for demo purposes.")
+    # RESET INDEX
+    df_display = df_display.reset_index(
+        drop=True
+    )
 
-    # ---------------- DATA USAGE ----------------
-    with st.container():
-        st.write("**Data Usage:** Historical data is used for analysis and prediction models.")
+    # =========================
+    # DYNAMIC LATEST DATA
+    # =========================
+    latest = df_display.iloc[-1]
+
+    latest_close = float(
+        latest['Close']
+    )
+
+    latest_volume = (
+        f"{round(latest['Volume']/1e6,2)}M"
+    )
+
+    latest_high = float(
+        latest['High']
+    )
+
+    latest_low = float(
+        latest['Low']
+    )
+
+    # =========================
+    # TOP METRICS
+    # =========================
+    st.markdown("---")
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    with m1:
+
+        st.metric(
+            "Selected Stock",
+            selected_stock
+        )
+
+    with m2:
+
+        st.metric(
+            "Latest Close",
+            f"PKR {latest_close:.2f}"
+        )
+
+    with m3:
+
+        st.metric(
+            "Latest High",
+            f"PKR {latest_high:.2f}"
+        )
+
+    with m4:
+
+        st.metric(
+            "Trading Volume",
+            latest_volume
+        )
+
+    st.markdown("---")
+
+    # =========================
+    # PRICE CHART
+    # =========================
+    st.subheader(
+        "Historical Closing Price Trend"
+    )
+
+    fig, ax = plt.subplots(
+        figsize=(12, 5)
+    )
+
+    # PLOT
+    ax.plot(
+        df_display.index,
+        df_display['Close'],
+        linewidth=2,
+        color='#16a34a'
+    )
+
+    # STYLE
+    ax.set_facecolor("white")
+
+    fig.patch.set_facecolor("white")
+
+    # LABELS
+    ax.set_xlabel(
+        "Historical Records"
+    )
+
+    ax.set_ylabel(
+        "Closing Price (PKR)"
+    )
+
+    # GRID
+    ax.grid(
+        alpha=0.3
+    )
+
+    # REMOVE BORDERS
+    ax.spines['top'].set_visible(False)
+
+    ax.spines['right'].set_visible(False)
+
+    # LESS LABELS
+    step = max(
+        len(df_display) // 10,
+        1
+    )
+
+    ax.set_xticks(
+        range(
+            0,
+            len(df_display),
+            step
+        )
+    )
+
+    ax.set_xticklabels(
+        df_display['Date'].iloc[
+            ::step
+        ],
+        rotation=45,
+        ha='right'
+    )
+
+    # TITLE
+    ax.set_title(
+        f"{selected_stock} Historical Closing Prices",
+        fontsize=14,
+        fontweight='bold'
+    )
+
+    st.pyplot(fig)
+
+    # =========================
+    # OHLC TABLE
+    # =========================
+    st.subheader(
+        f"Historical OHLC Data — {selected_stock}"
+    )
+
+    display_columns = [
+        'Date',
+        'Open',
+        'High',
+        'Low',
+        'Close',
+        'Volume'
+    ]
+
+    st.dataframe(
+        df_display[
+            display_columns
+        ],
+        use_container_width=True,
+        height=450
+    )
+
+    # =========================
+    # MARKET SUMMARY
+    # =========================
+    st.subheader(
+        "Market Data Summary"
+    )
+
+    avg_close = round(
+        df_display['Close'].mean(),
+        2
+    )
+
+    max_close = round(
+        df_display['Close'].max(),
+        2
+    )
+
+    min_close = round(
+        df_display['Close'].min(),
+        2
+    )
+
+    volatility = round(
+        df_display['Close'].std(),
+        2
+    )
+
+    s1, s2, s3, s4 = st.columns(4)
+
+    with s1:
+
+        st.info(
+            f"Average Close\n\nPKR {avg_close}"
+        )
+
+    with s2:
+
+        st.success(
+            f"Highest Close\n\nPKR {max_close}"
+        )
+
+    with s3:
+
+        st.error(
+            f"Lowest Close\n\nPKR {min_close}"
+        )
+
+    with s4:
+
+        st.warning(
+            f"Volatility\n\n{volatility}"
+        )
+
+    # =========================
+    # DATASET INFO
+    # =========================
+    st.markdown("---")
+
+    st.subheader(
+        "Dataset Usage"
+    )
+
+    st.info("""
+The displayed historical PSX market data is used
+for feature engineering, trend analysis, deep learning
+price forecasting using LSTM, and intelligent trading
+decision generation using DQN reinforcement learning.
+
+The hybrid AI system was trained using five years of
+historical stock market data.
+    """)

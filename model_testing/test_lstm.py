@@ -1,26 +1,51 @@
 import os
-import pandas as pd
 import numpy as np
+import pandas as pd
 import joblib
+
 from tensorflow.keras.models import load_model
 
 # ======================
-# PATHS (FIXED)
+# PATHS
 # ======================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 🔥 CHANGE ONLY IF YOUR DATA LOCATION IS DIFFERENT
-DATA_PATH = r"C:\UNIVERSITY\FYP\FYP DATASET\data\splits\test.csv"
-
-MODEL_PATH = os.path.join(BASE_DIR, "../models/lstm_ENGRO.h5")
-SCALER_PATH = os.path.join(BASE_DIR, "../models/scaler_ENGRO.pkl")
+MODEL_DIR = os.path.join(
+    BASE_DIR,
+    "..",
+    "models"
+)
 
 # ======================
-# FEATURES (SAME AS TRAINING)
+# DATA PATH
 # ======================
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "..",
+    "data",
+    "psx_final_dataset.csv"
+)
+
+# ======================
+# SETTINGS
+# ======================
+STOCKS = [
+    "ENGRO",
+    "HBL",
+    "MCB",
+    "OGDC",
+    "UBL"
+]
+
 FEATURES = [
-    'Open','High','Low','Close','Volume',
-    'Return','MA_5','MA_10'
+    'Open',
+    'High',
+    'Low',
+    'Close',
+    'Volume',
+    'Return',
+    'MA_5',
+    'MA_10'
 ]
 
 WINDOW_SIZE = 20
@@ -29,61 +54,262 @@ WINDOW_SIZE = 20
 # FEATURE ENGINEERING
 # ======================
 def add_features(df):
+
     df = df.copy()
 
+    # ======================
+    # SAFE CLOSE
+    # ======================
+    df['Close'] = df['Close'].replace(
+        0,
+        np.nan
+    )
+
+    # ======================
+    # RETURNS
+    # ======================
     df['Return'] = df['Close'].pct_change()
+
+    # ======================
+    # MOVING AVERAGES
+    # ======================
     df['MA_5'] = df['Close'].rolling(5).mean()
+
     df['MA_10'] = df['Close'].rolling(10).mean()
 
+    # ======================
+    # REMOVE INF
+    # ======================
+    df.replace(
+        [np.inf, -np.inf],
+        np.nan,
+        inplace=True
+    )
+
+    # ======================
+    # FILL NaN
+    # ======================
+    df = df.ffill().bfill()
+
+    # ======================
+    # FINAL SAFETY
+    # ======================
     df = df.dropna()
+
     return df
+
+# ======================
+# CREATE SEQUENCES
+# ======================
+def create_sequences(data):
+
+    X = []
+
+    y = []
+
+    for i in range(
+        WINDOW_SIZE,
+        len(data)
+    ):
+
+        X.append(
+            data[i-WINDOW_SIZE:i]
+        )
+
+        y.append(
+            data[i, FEATURES.index('Close')]
+        )
+
+    return (
+        np.array(X),
+        np.array(y)
+    )
 
 # ======================
 # LOAD DATA
 # ======================
-df = pd.read_csv(DATA_PATH)
-df = df[df['Symbol'] == 'ENGRO'].sort_values("Date")
+df = pd.read_csv(
+    DATA_PATH
+)
 
-df = add_features(df)
-
-# ======================
-# LOAD MODEL + SCALER
-# ======================
-model = load_model(MODEL_PATH, compile=False)
-scaler = joblib.load(SCALER_PATH)
+print("=" * 70)
+print("LSTM MODEL TESTING")
+print("=" * 70)
 
 # ======================
-# SCALE INPUT
+# LOOP
 # ======================
-df_scaled = df.copy()
-df_scaled[FEATURES] = scaler.transform(df_scaled[FEATURES])
+for stock in STOCKS:
 
-data = df_scaled[FEATURES].values
+    print("\n" + "=" * 50)
+    print(f"📈 TESTING {stock}")
+    print("=" * 50)
 
-print("\n🔍 Testing LSTM (REAL PRICES)...\n")
+    # ----------------------
+    # FILTER STOCK
+    # ----------------------
+    df_stock = df[
+        df['Symbol'] == stock
+    ].copy()
 
-# ======================
-# TEST LOOP
-# ======================
-for i in range(WINDOW_SIZE, len(data)):
+    # ----------------------
+    # FEATURE ENGINEERING
+    # ----------------------
+    df_stock = add_features(
+        df_stock
+    )
 
-    # INPUT WINDOW
-    X = np.array([data[i-WINDOW_SIZE:i]])
+    # ----------------------
+    # LOAD SCALER
+    # ----------------------
+    scaler = joblib.load(
+        os.path.join(
+            MODEL_DIR,
+            f"scaler_{stock}.pkl"
+        )
+    )
 
-    # PREDICTION (scaled)
-    pred_scaled = model.predict(X, verbose=0)[0][0]
+    # ----------------------
+    # SCALE DATA
+    # ----------------------
+    scaled_data = scaler.transform(
+        df_stock[FEATURES]
+    )
 
-    # ======================
-    # INVERSE TRANSFORM
-    # ======================
-    dummy = np.zeros((1, len(FEATURES)))
-    dummy[0, 3] = pred_scaled  # Close index
+    # ----------------------
+    # CREATE SEQUENCES
+    # ----------------------
+    X, y = create_sequences(
+        scaled_data
+    )
 
-    pred_real = scaler.inverse_transform(dummy)[0][3]
+    # ----------------------
+    # TRAIN / TEST SPLIT
+    # ----------------------
+    split = int(
+        len(X) * 0.7
+    )
 
-    # ======================
-    # ACTUAL PRICE
-    # ======================
-    actual_real = df.iloc[i]['Close']
+    X_test = X[split:]
 
-    print(f"Predicted: {pred_real:.2f} PKR | Actual: {actual_real:.2f} PKR")
+    y_test = y[split:]
+
+    # ----------------------
+    # LOAD MODEL
+    # ----------------------
+    model = load_model(
+        os.path.join(
+            MODEL_DIR,
+            f"lstm_{stock}.h5"
+        ),
+        compile=False
+    )
+
+    # ----------------------
+    # PREDICT
+    # ----------------------
+    preds = model.predict(
+        X_test,
+        verbose=0
+    )
+
+    # ----------------------
+    # INVERSE SCALE
+    # ----------------------
+    actual_prices = []
+
+    predicted_prices = []
+
+    for i in range(len(preds)):
+
+        # ACTUAL
+        dummy_actual = np.zeros(
+            (1, len(FEATURES))
+        )
+
+        dummy_actual[
+            0,
+            FEATURES.index('Close')
+        ] = y_test[i]
+
+        actual = scaler.inverse_transform(
+            dummy_actual
+        )[0][FEATURES.index('Close')]
+
+        # PREDICTED
+        dummy_pred = np.zeros(
+            (1, len(FEATURES))
+        )
+
+        dummy_pred[
+            0,
+            FEATURES.index('Close')
+        ] = preds[i][0]
+
+        pred = scaler.inverse_transform(
+            dummy_pred
+        )[0][FEATURES.index('Close')]
+
+        actual_prices.append(actual)
+
+        predicted_prices.append(pred)
+
+    # ----------------------
+    # CONVERT
+    # ----------------------
+    actual_prices = np.array(
+        actual_prices
+    )
+
+    predicted_prices = np.array(
+        predicted_prices
+    )
+
+    # ----------------------
+    # METRICS
+    # ----------------------
+    mae = np.mean(
+        np.abs(
+            actual_prices - predicted_prices
+        )
+    )
+
+    rmse = np.sqrt(
+        np.mean(
+            (
+                actual_prices - predicted_prices
+            ) ** 2
+        )
+    )
+
+    bias = np.mean(
+        predicted_prices - actual_prices
+    )
+
+    # ----------------------
+    # PRINT RESULTS
+    # ----------------------
+    print(f"\nMAE   : {mae:.2f}")
+
+    print(f"RMSE  : {rmse:.2f}")
+
+    print(f"BIAS  : {bias:.2f}")
+
+    # ----------------------
+    # VERDICT
+    # ----------------------
+    if bias > 10:
+
+        verdict = "UPWARD BIAS"
+
+    elif bias < -10:
+
+        verdict = "DOWNWARD BIAS"
+
+    else:
+
+        verdict = "GOOD"
+
+    print(f"🎯 Verdict: {verdict}")
+
+print("\n" + "=" * 70)
