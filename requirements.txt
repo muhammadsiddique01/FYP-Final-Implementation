@@ -3,5 +3,7 @@ pandas
 numpy
 matplotlib
 scikit-learn
-tensorflow-cpu
 joblib
+tensorflow-cpu==2.15.0
+keras==2.15.0
+h5py
